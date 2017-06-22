@@ -22,11 +22,11 @@ module.exports = function RouteConstructor(Model, options) {
 };
 
 /* TESTING BELOW */
-var sut = new require('./boldbyte')(),
-  context = undefined,
-  event = {
-    method: 'GET'
-  };
-
-
-sut(event, context, console.log);
+//var sut = new require('./boldbyte')(),
+//  context = undefined,
+//  event = {
+//    method: 'GET'
+//  };
+//
+//
+//sut(event, context, console.log);
