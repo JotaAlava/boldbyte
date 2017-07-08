@@ -1,6 +1,7 @@
 /**
  * Created by jalava on 3/22/2017.
  */
+'use strict'
 function VerbRouter(get, post, put, del) {
 
   var route = function (event, context, callback) {

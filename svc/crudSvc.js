@@ -1,6 +1,7 @@
 /**
  * Created by jalava on 3/21/2017.
  */
+'use strict'
 var _ = require('underscore');
 
 function CrudSvc(repo, preOps, postOps) {
@@ -18,13 +19,20 @@ function CrudSvc(repo, preOps, postOps) {
     return result;
   }
 
+  /*
+   * This guy has to return an  array of promises.
+   */
   function safeRunPreOps(verb, options) {
-    if (preOps && preOps.hasOwnProperty(verb)) {
-      options.preOps = {};
-      options.preOps[verb] = preOps[verb];
+    var result = [];
+
+    if (options.hasOwnProperty('preOps') && options.preOps !== undefined && options.preOps !== null) {
+      var preOps = options.preOps[verb];
+      _.map(preOps, function (val, key, list) {
+        result.push(preOps[key](options));
+      })
     }
 
-    return options;
+    return result;
   }
 
   var get = (event, context, callback) => {
@@ -59,7 +67,6 @@ function CrudSvc(repo, preOps, postOps) {
 
     repo.get(options)
       .then(function (data) {
-        console.log('inside custom get response' + data);
         var postOpResult = safeRunPostOps('get', data);
 
         if (postOpResult.then) {
@@ -75,98 +82,57 @@ function CrudSvc(repo, preOps, postOps) {
       });
   };
 
-  var del = (event, context, callback)=> {
-    const RESPONSE = {
-      OK: {
-        statusCode: 204,
-        message: []
-      },
-      ERROR: {
-        status: 400,
-        message: 'Something went wrong. Please try again.'
-      }
-    };
+  var execute = (verb)=> {
+    return (event, context, callback) => {
+      let parsedBody = event.body,
+        options = {
+          preOps: preOps,
+          postOps: postOps,
+          repo: repo
+        };
 
-    var options = safeRunPreOps('delete', {});
-
-    if (event.hasOwnProperty('path') && event.path.hasOwnProperty('id')) {
-      options.query = {
-        id: event.path.id
+      if (parsedBody) {
+        options.body = parsedBody;
       }
+
+      // This if is to accomodate the delete.
+      if (event.hasOwnProperty('path') && event.path.hasOwnProperty('id')) {
+        options.query = {
+          id: event.path.id
+        }
+      }
+
+      var arrayOfPreOpPromises = safeRunPreOps(verb, options);
+
+      Promise.all(arrayOfPreOpPromises)
+        .then(()=> {
+          // if all pre ops passed, then call the repo
+          repo[verb](options)
+            .then(function (data) {
+              // I don't see a reason why post ops should delay the end of execution...
+              callback(null, safeRunPostOps(verb, data));
+            }, function (err) {
+              callback(null, {
+                  statusCode: 400,
+                  message: 'Something went wrong. Please try again.'
+                });
+            });
+        })
+        .catch(()=> {
+          // At least one promise failed...
+          callback(null, {
+            statusCode: 400,
+            message: 'Pre ops failed.'
+          });
+        });
     }
-
-    repo.delete(options)
-      .then(function (data) {
-        callback(null, safeRunPostOps('delete', data));
-      }, function (err) {
-        RESPONSE.ERROR.err = err;
-        callback(null, RESPONSE.ERROR);
-      });
-  };
-
-  var add = (event, context, callback) => {
-    var parsedBody = event.body;
-
-    const RESPONSE = {
-      OK: {
-        statusCode: 201,
-        message: []
-      },
-      ERROR: {
-        status: 400,
-        message: 'Something went wrong. Please try again.'
-      }
-    };
-
-    var options = safeRunPreOps('post', {});
-
-    if (parsedBody) {
-      options.body = parsedBody;
-    }
-
-    repo.add(options)
-      .then(function (data) {
-        callback(null, safeRunPostOps('post', data));
-      }, function (err) {
-        RESPONSE.ERROR.err = err;
-        callback(null, RESPONSE.ERROR);
-      });
-  };
-
-  var set = (event, context, callback) => {
-    var parsedBody = event.body;
-
-    const RESPONSE = {
-      OK: {
-        statusCode: 204,
-        message: []
-      },
-      ERROR: {
-        status: 400,
-        message: 'Something went wrong. Please try again.'
-      }
-    };
-
-    var options = safeRunPreOps('put', {});
-
-    if (parsedBody) {
-      options.body = parsedBody;
-    }
-
-    repo.set(options)
-      .then(function (data) {
-        callback(null, safeRunPostOps('put', data));
-      }, function (err) {
-        RESPONSE.ERROR.err = err;
-        callback(null, RESPONSE.ERROR);
-      });
   };
 
   return {
     get: get,
-    post: add,
-    put: set,
-    del: del
+    post: execute('post'),
+    put: execute('put'),
+    del: execute('delete')
   }
 }
 

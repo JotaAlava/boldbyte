@@ -14,10 +14,10 @@ function decorateWithPagination(anyQueryStrings, options, result) {
     var startKey = {
         id: options.query.startKey
       },
-        queryParams = Object.keys(options.query);
+      queryParams = Object.keys(options.query);
 
     _.forEach(queryParams, function (val, key, list) {
-      if (val !== 'pageSize' || val !== 'startKey'){
+      if (val !== 'pageSize' || val !== 'startKey') {
         startKey[val] = options.query[val];
       }
     });
@@ -40,7 +40,7 @@ module.exports = function (Model, customOps) {
       var anyQueryStrings = options.hasOwnProperty('query');
       if (customOps && customOps.hasOwnProperty('get')) {
         result = customOps.get(Model, options);
-        if (!result.execAsync){
+        if (!result.execAsync) {
           var fatal = 'Custom Operations must return promise.';
           throw fatal;
         }
@@ -49,7 +49,7 @@ module.exports = function (Model, customOps) {
       } else {
         if (anyQueryStrings && options.query.hasOwnProperty('id')) {
           result = Model
-            .query(options.query.id.toString())
+            .query(options.query.id.toString());
 
           decorateWithPagination(anyQueryStrings, options, result);
         } else {
@@ -69,17 +69,11 @@ module.exports = function (Model, customOps) {
 
   var add = (options)=> {
     let result;
-    let preOpResult = true;
-    if (options.hasOwnProperty('preOp') && options.preOp !== undefined && options.preOp !== null) {
-      preOpResult = options.preOp(options);
-    }
 
-    if (preOpResult) {
-      if (options.hasOwnProperty('body')) {
-        result = Model.createAsync(options.body);
-      }
+    if (options.hasOwnProperty('body')) {
+      result = Model.createAsync(options.body);
     } else {
-      result = Promise.reject(new Error('Pre op failed.'))
+      result = Promise.reject(new Error('No body found.'))
     }
 
     return result;
@@ -87,45 +81,31 @@ module.exports = function (Model, customOps) {
 
   var set = (options)=> {
     let result;
-    let preOpResult = true;
-    if (options.hasOwnProperty('preOp') && options.preOp !== undefined && options.preOp !== null) {
-      preOpResult = options.preOp(options);
-    }
 
-    if (preOpResult) {
-      if (options.hasOwnProperty('body')) {
-        result = Model.updateAsync(options.body);
-      }
+    if (options.hasOwnProperty('body')) {
+      result = Model.updateAsync(options.body);
     } else {
-      result = Promise.reject(new Error('Pre op failed.'))
+      result = Promise.reject(new Error('No body found.'))
     }
-
 
     return result;
   };
 
   var del = (options)=> {
     let result;
-    let preOpResult = true;
-    if (options.hasOwnProperty('preOp') && options.preOp !== undefined && options.preOp !== null) {
-      preOpResult = options.preOp();
-    }
 
-    if (preOpResult) {
-      if (options && options.hasOwnProperty('query') && options.query.hasOwnProperty('id')) {
-        result = Model.destroyAsync(options.query.id.toString());
-      } else {
-        result = Promise.reject(new Error('Pre op failed.'))
-      }
-
+    if (options && options.hasOwnProperty('query') && options.query.hasOwnProperty('id')) {
+      result = Model.destroyAsync(options.query.id.toString());
+    } else {
+      result = Promise.reject(new Error('No body found.'))
     }
 
     return result;
   };
 
   return {
-    add: add,
-    set: set,
+    post: add,
+    put: set,
     get: get,
     delete: del
   }
