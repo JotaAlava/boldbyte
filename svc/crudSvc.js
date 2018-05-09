@@ -46,22 +46,24 @@ function CrudSvc(repo, preOps, postOps) {
         message: 'Something went wrong. Please try again.'
       }
     };
-
     var options = safeRunPreOps('get', {});
 
-    if (event.hasOwnProperty('path') && event.path.hasOwnProperty('id')) {
+    // If I ever get serious about this framework, this will have to change by provider...
+    //  I'm sure it's different in IBM, Google and Microsoft cloud offerings.
+    let awsBodyProp = 'pathParameters';
+    if (event[awsBodyProp] && event[awsBodyProp].hasOwnProperty('id')) {
       options.query = {};
       options.query = {
-        id: event.path.id
+        id: event[awsBodyProp].id
       }
     }
 
-    if (event.query) {
+    if (event.queryStringParameters) {
       options.query = options.query || {};
 
-      var keys = Object.keys(event.query);
+      var keys = Object.keys(event.queryStringParameters);
       _.forEach(keys, function (val) {
-        options.query[val] = event.query[val];
+        options.query[val] = event.queryStringParameters[val];
       });
     }
 
@@ -82,7 +84,7 @@ function CrudSvc(repo, preOps, postOps) {
       });
   };
 
-  var execute = (verb)=> {
+  var execute = (verb) => {
     return (event, context, callback) => {
       let parsedBody = event.body,
         options = {
@@ -105,7 +107,7 @@ function CrudSvc(repo, preOps, postOps) {
       var arrayOfPreOpPromises = safeRunPreOps(verb, options);
 
       Promise.all(arrayOfPreOpPromises)
-        .then(()=> {
+        .then(() => {
           // if all pre ops passed, then call the repo
           repo[verb](options)
             .then(function (data) {
@@ -113,12 +115,12 @@ function CrudSvc(repo, preOps, postOps) {
               callback(null, safeRunPostOps(verb, data));
             }, function (err) {
               callback(null, {
-                  statusCode: 400,
-                  message: 'Something went wrong. Please try again.'
-                });
+                statusCode: 400,
+                message: JSON.stringify(err)
+              });
             });
         })
-        .catch(()=> {
+        .catch(() => {
           // At least one promise failed...
           callback(null, {
             statusCode: 400,

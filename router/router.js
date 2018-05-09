@@ -5,7 +5,7 @@
 function VerbRouter(get, post, put, del) {
 
   var route = function (event, context, callback) {
-    var verb = event.method;
+    var verb = event.httpMethod;
 
     if (verb === 'GET') {
       get(event, context, callback);
@@ -17,7 +17,7 @@ function VerbRouter(get, post, put, del) {
       del(event, context, callback);
     } else {
       callback(null, {
-        status: 500,
+        status: 200,
         message: 'Method not supported.'
       });
     }
